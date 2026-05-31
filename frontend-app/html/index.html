@@ -1,0 +1,121 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Soermin Farm - Greenhouse Selederi</title>
+    <link rel="stylesheet" href="style.css?v=8">
+    <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
+</head>
+<body>
+    <main class="container">
+        <header class="page-header">
+            <div class="brand-lockup">
+                <img class="brand-logo" src="assets/soermin-farm-logo.svg" alt="Logo Soermin Farm">
+                <div>
+                    <h1>Soermin Farm</h1>
+                    <p class="brand-subtitle">Greenhouse Selederi</p>
+                </div>
+            </div>
+            <div class="time-badge">Waktu Lokal WIB</div>
+        </header>
+        
+        <!-- Cards untuk status terkini -->
+        <div class="cards">
+            <div class="card metric-card metric-temp">
+                <span class="metric-label">Suhu</span>
+                <strong><span id="temp">--</span><small> °C</small></strong>
+            </div>
+            <div class="card metric-card metric-humidity">
+                <span class="metric-label">Kelembaban</span>
+                <strong><span id="hum">--</span><small> %</small></strong>
+            </div>
+            <div class="card metric-card metric-light">
+                <span class="metric-label">Cahaya</span>
+                <strong><span id="light">--</span><small> lux</small></strong>
+            </div>
+            <div class="card metric-card metric-energy">
+                <span class="metric-label">Energi</span>
+                <strong><span id="energy">--</span><small> kWh</small></strong>
+            </div>
+        </div>
+
+        <!-- Progress Bars -->
+        <div class="progress-section">
+            <div class="progress-card">
+                <h3>Menuju Panen</h3>
+                <div class="progress-bar-container">
+                    <div class="progress-bar" id="harvest-progress-bar" style="width: 0%;">0%</div>
+                </div>
+                <p id="harvest-status"></p>
+                <div class="harvest-summary">
+                    <div class="harvest-info-item">
+                        <span>Hari Tanam</span>
+                        <strong id="harvest-day">--</strong>
+                    </div>
+                    <div class="harvest-info-item">
+                        <span>Sisa Hari</span>
+                        <strong id="harvest-remaining">--</strong>
+                    </div>
+                    <div class="harvest-info-item">
+                        <span>Fase</span>
+                        <strong id="harvest-stage">--</strong>
+                    </div>
+                    <div class="harvest-info-item">
+                        <span>Estimasi Panen</span>
+                        <strong id="harvest-estimate">--</strong>
+                    </div>
+                </div>
+                <div class="harvest-focus" id="harvest-focus">
+                    Menunggu data pertumbuhan.
+                </div>
+            </div>
+            <div class="progress-card">
+                <h3>Penggunaan Aktuator</h3>
+                <div id="actuator-usage" class="actuator-list">
+                </div>
+            </div>
+        </div>
+
+        <!-- Grafik Harian -->
+        <div class="charts-grid">
+            <div class="chart-card">
+                <h3>Suhu Harian</h3>
+                <div class="chart-frame">
+                    <canvas id="temperatureChart"></canvas>
+                </div>
+            </div>
+            <div class="chart-card">
+                <h3>Kelembaban Harian</h3>
+                <div class="chart-frame">
+                    <canvas id="humidityChart"></canvas>
+                </div>
+            </div>
+            <div class="chart-card">
+                <h3>Cahaya Harian</h3>
+                <div class="chart-frame">
+                    <canvas id="lightChart"></canvas>
+                </div>
+            </div>
+            <div class="chart-card">
+                <h3>Energi Harian</h3>
+                <div class="chart-frame">
+                    <canvas id="energyChart"></canvas>
+                </div>
+            </div>
+        </div>
+
+        <!-- Form Upload Laporan -->
+        <div class="upload-section">
+            <h3>Upload Laporan Bulanan</h3>
+            <form id="uploadForm">
+                <input type="file" id="fileInput" required>
+                <button type="submit">Upload</button>
+            </form>
+            <h4>Daftar Laporan:</h4>
+            <ul id="fileList"></ul>
+        </div>
+    </main>
+    <script src="app.js?v=8"></script>
+</body>
+</html>

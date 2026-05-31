@@ -1,0 +1,92 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: farm-data-config
+  namespace: farm-db-svc
+  labels:
+    app.kubernetes.io/part-of: smartfarming
+    environment: local
+data:
+  DB_INIT_RETRIES: "60"
+  DB_INIT_DELAY_SECONDS: "2"
+  CROP_DAYS_SINCE_PLANTING: "10"
+  CROP_EXPECTED_HARVEST_DAYS: "60"
+  CROP_TARGET_ENERGY_KWH_PER_DAY: "100"
+---
+apiVersion: v1
+kind: Secret
+metadata:
+  name: farm-data-secret
+  namespace: farm-db-svc
+  labels:
+    app.kubernetes.io/part-of: smartfarming
+    environment: local
+type: Opaque
+stringData:
+  DATABASE_URL: postgresql://postgres:secret@postgres-postgresql.farm-db-svc.svc.cluster.local:5432/farming
+---
+apiVersion: v1
+kind: Secret
+metadata:
+  name: postgres-secret
+  namespace: farm-db-svc
+  labels:
+    app.kubernetes.io/part-of: smartfarming
+    environment: local
+type: Opaque
+stringData:
+  POSTGRES_DB: farming
+  POSTGRES_USER: postgres
+  POSTGRES_PASSWORD: secret
+---
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: iot-simulator-config
+  namespace: farm-db-svc
+  labels:
+    app.kubernetes.io/part-of: smartfarming
+    environment: local
+data:
+  FARM_DATA_URL: http://farm-data-service.farm-db-svc.svc.cluster.local:8000
+  INTERVAL_SECONDS: "60"
+---
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: storage-config
+  namespace: storage-svc
+  labels:
+    app.kubernetes.io/part-of: smartfarming
+    environment: local
+data:
+  S3_ENDPOINT: http://minio.storage-svc.svc.cluster.local:9000
+  S3_BUCKET: reports
+  S3_INIT_RETRIES: "60"
+  S3_INIT_DELAY_SECONDS: "2"
+---
+apiVersion: v1
+kind: Secret
+metadata:
+  name: storage-secret
+  namespace: storage-svc
+  labels:
+    app.kubernetes.io/part-of: smartfarming
+    environment: local
+type: Opaque
+stringData:
+  S3_ACCESS_KEY: admin
+  S3_SECRET_KEY: minio123
+---
+apiVersion: v1
+kind: Secret
+metadata:
+  name: minio-secret
+  namespace: storage-svc
+  labels:
+    app.kubernetes.io/part-of: smartfarming
+    environment: local
+type: Opaque
+stringData:
+  MINIO_ROOT_USER: admin
+  MINIO_ROOT_PASSWORD: minio123

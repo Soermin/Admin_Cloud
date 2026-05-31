@@ -1,0 +1,15 @@
+<svg width="96" height="96" viewBox="0 0 96 96" fill="none" xmlns="http://www.w3.org/2000/svg" role="img" aria-labelledby="title desc">
+  <title id="title">Soermin Farm</title>
+  <desc id="desc">Logo daun hijau Soermin Farm</desc>
+  <path d="M48 78C48 58 48 36 48 18" stroke="#2f8f2f" stroke-width="9" stroke-linecap="round"/>
+  <path d="M48 56C36 42 28 34 14 34V48C26 48 36 51 48 64V56Z" fill="#2f8f2f"/>
+  <path d="M48 56C60 42 68 34 82 34V48C70 48 60 51 48 64V56Z" fill="#2f8f2f"/>
+  <path d="M48 36C39 25 33 20 22 20V32C32 32 39 35 48 45V36Z" fill="#2f8f2f"/>
+  <path d="M48 36C57 25 63 20 74 20V32C64 32 57 35 48 45V36Z" fill="#2f8f2f"/>
+  <path d="M48 73C37 61 30 56 17 56V70C29 70 38 73 48 84V73Z" fill="#2f8f2f"/>
+  <path d="M48 73C59 61 66 56 79 56V70C67 70 58 73 48 84V73Z" fill="#2f8f2f"/>
+  <path d="M33 37C27 35 23 31 21 26" stroke="white" stroke-width="5" stroke-linecap="round"/>
+  <path d="M63 37C69 35 73 31 75 26" stroke="white" stroke-width="5" stroke-linecap="round"/>
+  <path d="M31 64C27 63 23 60 21 55" stroke="white" stroke-width="5" stroke-linecap="round"/>
+  <path d="M65 64C69 63 73 60 75 55" stroke="white" stroke-width="5" stroke-linecap="round"/>
+</svg>

@@ -1,0 +1,46 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: iot-simulator
+  namespace: farm-db-svc
+  labels:
+    app: iot-simulator
+    app.kubernetes.io/part-of: smartfarming
+    environment: local
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: iot-simulator
+  template:
+    metadata:
+      labels:
+        app: iot-simulator
+        app.kubernetes.io/part-of: smartfarming
+        environment: local
+    spec:
+      serviceAccountName: iot-simulator
+      containers:
+      - name: simulator
+        image: localhost:32000/iot-simulator:latest
+        imagePullPolicy: IfNotPresent
+        envFrom:
+        - configMapRef:
+            name: iot-simulator-config
+        readinessProbe:
+          exec:
+            command:
+            - python
+            - -c
+            - "import os, urllib.request; urllib.request.urlopen(os.environ['FARM_DATA_URL'] + '/health', timeout=2)"
+          initialDelaySeconds: 15
+          periodSeconds: 20
+          timeoutSeconds: 5
+          failureThreshold: 6
+        resources:
+          requests:
+            memory: "64Mi"
+            cpu: "50m"
+          limits:
+            memory: "128Mi"
+            cpu: "100m"

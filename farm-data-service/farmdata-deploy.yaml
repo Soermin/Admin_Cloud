@@ -1,0 +1,106 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: farm-data-service
+  namespace: farm-db-svc
+  labels:
+    app: farm-data-service
+    app.kubernetes.io/part-of: smartfarming
+    environment: local
+spec:
+  replicas: 2
+  selector:
+    matchLabels:
+      app: farm-data-service
+  template:
+    metadata:
+      labels:
+        app: farm-data-service
+        app.kubernetes.io/part-of: smartfarming
+        environment: local
+    spec:
+      serviceAccountName: farm-data-service
+      containers:
+      - name: farm-data-service
+        image: localhost:32000/farm-data-service:latest
+        imagePullPolicy: IfNotPresent
+        ports:
+        - name: http
+          containerPort: 8000
+        envFrom:
+        - configMapRef:
+            name: farm-data-config
+        - secretRef:
+            name: farm-data-secret
+        startupProbe:
+          httpGet:
+            path: /health
+            port: http
+          periodSeconds: 5
+          timeoutSeconds: 3
+          failureThreshold: 60
+        readinessProbe:
+          httpGet:
+            path: /health
+            port: http
+          initialDelaySeconds: 10
+          periodSeconds: 10
+          timeoutSeconds: 3
+          failureThreshold: 6
+        livenessProbe:
+          httpGet:
+            path: /health
+            port: http
+          initialDelaySeconds: 10
+          periodSeconds: 20
+          timeoutSeconds: 5
+          failureThreshold: 3
+        resources:
+          requests:
+            memory: "128Mi"
+            cpu: "100m"
+          limits:
+            memory: "256Mi"
+            cpu: "200m"
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: farm-data-service
+  namespace: farm-db-svc
+  labels:
+    app: farm-data-service
+    app.kubernetes.io/part-of: smartfarming
+    environment: local
+spec:
+  selector:
+    app: farm-data-service
+  ports:
+  - name: http
+    port: 8000
+    targetPort: http
+  type: ClusterIP
+---
+apiVersion: autoscaling/v2
+kind: HorizontalPodAutoscaler
+metadata:
+  name: farm-data-service-hpa
+  namespace: farm-db-svc
+  labels:
+    app: farm-data-service
+    app.kubernetes.io/part-of: smartfarming
+    environment: local
+spec:
+  scaleTargetRef:
+    apiVersion: apps/v1
+    kind: Deployment
+    name: farm-data-service
+  minReplicas: 2
+  maxReplicas: 5
+  metrics:
+  - type: Resource
+    resource:
+      name: cpu
+      target:
+        type: Utilization
+        averageUtilization: 50

@@ -1,0 +1,104 @@
+SCRIPT PRESENTASI PROGRESS PROJECT SMARTFARMING
+===============================================
+
+Tujuan Project
+--------------
+Project SmartFarming ini bertujuan membangun sistem monitoring pertanian pintar yang terdiri dari frontend dashboard, backend pengelola data sensor, backend penyimpanan file laporan, serta simulator IoT untuk menghasilkan data sensor secara otomatis.
+
+Pada target akhirnya, sesuai draft project, sistem ini akan berjalan di Amazon EKS dengan integrasi AWS seperti RDS PostgreSQL, S3, IRSA, ECR, backup, cost tagging, dan automation menggunakan Terraform atau CDK.
+
+Untuk progres saat ini, project masih berada pada tahap lokal. Fokusnya adalah memastikan semua service utama bisa berjalan dan saling terhubung sebelum dipindahkan ke Kubernetes/EKS.
+
+
+Progress Saat Ini
+-----------------
+Saat ini project sudah memiliki beberapa komponen utama.
+
+Pertama, ada farm-data-service. Service ini berfungsi menerima data sensor dari simulator IoT, menyimpannya ke PostgreSQL, lalu menyediakan API untuk membaca data terbaru, data harian, progress panen, dan konsumsi energi.
+
+Kedua, ada storage-service. Service ini digunakan untuk mengelola file laporan, seperti upload, melihat daftar file, download, dan hapus file. Pada tahap lokal, service ini belum memakai Amazon S3 asli, tetapi memakai MinIO sebagai pengganti S3-compatible storage.
+
+Ketiga, ada iot-simulator. Service ini membuat data sensor tiruan seperti suhu, kelembaban, cahaya, dan konsumsi energi. Data tersebut dikirim secara berkala ke farm-data-service.
+
+Keempat, ada frontend-app. Frontend ini berupa dashboard web untuk menampilkan data sensor, grafik harian, progress panen, penggunaan aktuator, serta fitur upload laporan.
+
+Kelima, ada docker-compose.local.yml. File ini digunakan untuk menjalankan seluruh service lokal dalam satu command, termasuk PostgreSQL, MinIO, backend, frontend, dan simulator.
+
+
+Alur Sistem Lokal
+-----------------
+Alur kerja sistem saat ini adalah sebagai berikut.
+
+Pertama, iot-simulator membuat data sensor secara otomatis.
+
+Kedua, data tersebut dikirim ke farm-data-service melalui endpoint telemetry.
+
+Ketiga, farm-data-service menyimpan data ke database PostgreSQL lokal.
+
+Keempat, frontend mengambil data dari farm-data-service untuk menampilkan card metric dan grafik.
+
+Kelima, jika user mengupload laporan dari frontend, file tersebut dikirim ke storage-service.
+
+Keenam, storage-service menyimpan file tersebut ke MinIO.
+
+Jadi, pada tahap lokal ini, alur data utama dari simulator ke backend, database, frontend, dan storage sudah terbentuk.
+
+
+File Penting Dalam Project
+--------------------------
+Beberapa file penting dalam project ini adalah:
+
+1. docker-compose.local.yml
+File ini menjadi pusat untuk menjalankan semua service secara lokal.
+
+2. farm-data-service/app.py
+File ini berisi API utama untuk data sensor dan progress tanaman.
+
+3. storage-service/app.py
+File ini berisi API untuk pengelolaan file laporan.
+
+4. iot-simulator/simulator.py
+File ini berisi logic untuk membuat dan mengirim data sensor tiruan.
+
+5. frontend-app/html/index.html, style.css, dan app.js
+File ini membentuk tampilan dashboard dan menghubungkan frontend dengan backend.
+
+6. file deploy yaml
+Project juga sudah memiliki manifest Kubernetes dasar untuk farm-data-service, storage-service, frontend, dan iot-simulator.
+
+
+Kesesuaian Dengan Draft Project
+-------------------------------
+Jika dibandingkan dengan draft project pada PDF, progress saat ini sudah sesuai pada bagian fondasi aplikasi.
+
+Bagian yang sudah ada adalah frontend, dua backend utama, simulator IoT, database lokal, storage lokal, Dockerfile untuk service, Docker Compose lokal, dan beberapa manifest Kubernetes dasar.
+
+Namun, ada beberapa bagian target akhir yang belum dikerjakan karena project masih tahap lokal.
+
+Bagian yang belum ada antara lain Terraform atau CDK, EKS cluster, IAM Role, IRSA, ECR, RDS AWS, S3 AWS, backup cloud, restore guide, budget alert, dan cost tagging otomatis.
+
+Selain itu, pada manifest Kubernetes juga belum ada ServiceAccount khusus untuk masing-masing service. ServiceAccount ini nantinya penting untuk IRSA, agar Pod di EKS bisa mengakses AWS service tanpa menyimpan access key di container atau YAML.
+
+
+Status dan Tahap Berikutnya
+---------------------------
+Project ini sudah memiliki pondasi lokal yang cukup baik.
+
+Service utama sudah dibuat, alur data sudah terbentuk, frontend sudah bisa dirancang untuk membaca data backend, dan local stack sudah disiapkan melalui Docker Compose.
+
+Untuk tahap berikutnya, fokus pengembangan adalah memperkuat deployment Kubernetes lokal, menambahkan Namespace dan ServiceAccount, lalu mulai menyiapkan bagian cloud seperti EKS, IRSA, RDS, S3, dan Terraform atau CDK.
+
+Dengan progres ini, posisi project saat ini adalah tahap validasi lokal sebelum masuk ke tahap deployment cloud.
+
+
+Ringkasan Sangat Singkat
+------------------------
+Project SmartFarming ini bertujuan membangun sistem monitoring pertanian pintar dengan frontend dashboard, backend data sensor, backend storage file, dan simulator IoT.
+
+Saat ini project masih tahap lokal. Komponen yang sudah ada adalah farm-data-service untuk menyimpan data sensor ke PostgreSQL, storage-service untuk menyimpan file laporan ke MinIO, iot-simulator untuk membuat data sensor otomatis, dan frontend-app untuk menampilkan dashboard.
+
+Semua komponen lokal dijalankan melalui docker-compose.local.yml. Alur datanya adalah simulator mengirim sensor ke farm-data-service, data disimpan di PostgreSQL, lalu frontend membaca data tersebut untuk ditampilkan. Untuk file laporan, frontend mengirim file ke storage-service dan disimpan di MinIO.
+
+Project juga sudah memiliki Dockerfile dan manifest Kubernetes dasar. Target cloud seperti EKS, IRSA, RDS AWS, S3 AWS, Terraform/CDK, backup, budget, dan ServiceAccount khusus belum selesai karena masih tahap lokal.
+
+Fondasi lokal project sudah terbentuk. Tahap berikutnya adalah memperkuat Kubernetes lokal serta menyiapkan integrasi AWS.
