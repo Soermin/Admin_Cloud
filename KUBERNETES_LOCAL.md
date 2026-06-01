@@ -79,6 +79,20 @@ Dashboard:
 kubectl -n frontend-svc port-forward svc/frontend 8080:80
 ```
 
+Jika browser dibuka dari mesin lain atau dari host di luar terminal server, buka port-forward ke semua interface:
+
+```bash
+kubectl -n frontend-svc port-forward --address 0.0.0.0 svc/frontend 8080:80
+```
+
+Lalu akses:
+
+```text
+http://<IP-server-aktif>:8080
+```
+
+Catatan: service `frontend` bertipe `ClusterIP`, jadi tidak bisa langsung diakses lewat IP node tanpa `port-forward`, `NodePort`, atau `Ingress`.
+
 Farm Data API docs:
 
 ```bash
@@ -94,7 +108,7 @@ kubectl -n storage-svc port-forward svc/storage-service 8001:8000
 MinIO console:
 
 ```bash
-kubectl -n storage-svc port-forward svc/minio 9001:9001
+kubectl -n storage-svc port-forward svc/minio-local 9001:9001
 ```
 
 Endpoint lokal setelah port-forward:

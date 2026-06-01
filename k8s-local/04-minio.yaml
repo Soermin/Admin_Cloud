@@ -87,7 +87,7 @@ spec:
 apiVersion: v1
 kind: Service
 metadata:
-  name: minio
+  name: minio-local
   namespace: storage-svc
   labels:
     app: minio-local

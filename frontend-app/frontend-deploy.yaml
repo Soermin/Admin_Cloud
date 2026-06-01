@@ -22,7 +22,7 @@ spec:
       serviceAccountName: frontend
       containers:
         - name: frontend
-          image: localhost:32000/frontend:latest
+          image: localhost:32000/frontend:v0.1.0
           imagePullPolicy: IfNotPresent
           ports:
             - name: http

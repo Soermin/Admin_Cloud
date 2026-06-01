@@ -22,7 +22,7 @@ spec:
       serviceAccountName: iot-simulator
       containers:
       - name: simulator
-        image: localhost:32000/iot-simulator:latest
+        image: localhost:32000/iot-simulator:v0.1.0
         imagePullPolicy: IfNotPresent
         envFrom:
         - configMapRef:

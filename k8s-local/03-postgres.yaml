@@ -91,7 +91,7 @@ spec:
 apiVersion: v1
 kind: Service
 metadata:
-  name: postgres-postgresql
+  name: postgres-local
   namespace: farm-db-svc
   labels:
     app: postgres-postgresql

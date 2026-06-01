@@ -22,7 +22,7 @@ spec:
       serviceAccountName: storage-service
       containers:
         - name: storage-service
-          image: localhost:32000/storage-service:latest
+          image: localhost:32000/storage-service:v0.1.0
           imagePullPolicy: IfNotPresent
           ports:
             - name: http

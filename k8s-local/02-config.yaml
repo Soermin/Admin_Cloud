@@ -23,7 +23,7 @@ metadata:
     environment: local
 type: Opaque
 stringData:
-  DATABASE_URL: postgresql://postgres:secret@postgres-postgresql.farm-db-svc.svc.cluster.local:5432/farming
+  DATABASE_URL: postgresql://postgres:secret@postgres-local.farm-db-svc.svc.cluster.local:5432/farming
 ---
 apiVersion: v1
 kind: Secret
@@ -60,7 +60,7 @@ metadata:
     app.kubernetes.io/part-of: smartfarming
     environment: local
 data:
-  S3_ENDPOINT: http://minio.storage-svc.svc.cluster.local:9000
+  S3_ENDPOINT: http://minio-local.storage-svc.svc.cluster.local:9000
   S3_BUCKET: reports
   S3_INIT_RETRIES: "60"
   S3_INIT_DELAY_SECONDS: "2"

@@ -22,7 +22,7 @@ spec:
       serviceAccountName: farm-data-service
       containers:
       - name: farm-data-service
-        image: localhost:32000/farm-data-service:latest
+        image: localhost:32000/farm-data-service:v0.1.0
         imagePullPolicy: IfNotPresent
         ports:
         - name: http

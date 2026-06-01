@@ -1,0 +1,1030 @@
+RESUME LENGKAP PROGRESS PROJECT SMARTFARMING
+============================================
+
+Tujuan file ini:
+File ini dibuat sebagai bahan belajar dan bahan diskusi lanjutan. Isinya menjelaskan apa saja yang sudah dikerjakan pada project SmartFarming, teknologi yang dipakai, logika alur sistem, status Kubernetes lokal, dan roadmap berikutnya.
+
+
+1. RINGKASAN BESAR
+------------------
+
+Project ini adalah sistem SmartFarming untuk monitoring greenhouse. Aplikasi terdiri dari:
+
+1. Frontend dashboard untuk menampilkan data sensor, grafik, progress panen, penggunaan aktuator, dan upload laporan.
+2. farm-data-service untuk menerima data sensor IoT, menyimpan data ke PostgreSQL, dan menyediakan API metrik.
+3. storage-service untuk upload, list, download, dan delete file laporan ke storage S3-compatible.
+4. iot-simulator untuk membuat data sensor tiruan secara berkala.
+5. PostgreSQL sebagai database telemetry dan konfigurasi tanaman.
+6. MinIO sebagai pengganti Amazon S3 pada mode lokal.
+7. Docker Compose untuk menjalankan stack lokal dengan mudah.
+8. Kubernetes lokal/MicroK8s untuk latihan deployment ala EKS sebelum masuk AWS.
+
+Status saat ini:
+Fondasi lokal project sudah komplit untuk tahap local development dan Kubernetes lokal. Service utama sudah bisa berjalan dan saling terhubung. Bagian cloud AWS seperti EKS asli, ECR, RDS, S3, IRSA, Terraform/CDK, backup cloud, budget alert, dan cost tagging masih menjadi tahap berikutnya.
+
+
+2. TARGET AKHIR BERDASARKAN DESKRIPSI PROJECT
+---------------------------------------------
+
+Target akhir project adalah menjalankan sistem SmartFarming di AWS dengan arsitektur yang lebih production-like:
+
+1. Amazon EKS sebagai Kubernetes cluster.
+2. Amazon ECR sebagai container image registry.
+3. Amazon RDS PostgreSQL sebagai database managed.
+4. Amazon S3 sebagai object storage untuk laporan.
+5. IAM Roles for Service Accounts atau IRSA agar Pod di EKS bisa akses AWS service tanpa menyimpan access key di container.
+6. Terraform atau AWS CDK untuk membuat infrastruktur secara otomatis.
+7. Backup dan restore untuk database dan object storage.
+8. Cost tagging, budget, dan monitoring biaya.
+9. Kubernetes manifest yang rapi dengan namespace, service account, resource request/limit, probe, dan autoscaling.
+
+Yang sudah kita kerjakan sekarang adalah versi lokal dan Kubernetes lokal sebagai pondasi sebelum migrasi ke AWS.
+
+
+3. TEKNOLOGI YANG DIPAKAI
+-------------------------
+
+Bahasa dan framework aplikasi:
+
+1. Python 3.11
+   Dipakai oleh farm-data-service, storage-service, dan iot-simulator.
+
+2. FastAPI
+   Dipakai untuk membuat REST API pada farm-data-service dan storage-service.
+
+3. Uvicorn
+   ASGI server untuk menjalankan aplikasi FastAPI.
+
+4. SQLAlchemy
+   ORM untuk membuat model database dan query ke PostgreSQL pada farm-data-service.
+
+5. Pydantic
+   Validasi request body, terutama data telemetry sensor.
+
+6. boto3
+   SDK AWS untuk koneksi ke S3-compatible storage. Pada lokal, boto3 diarahkan ke MinIO.
+
+7. requests
+   Dipakai iot-simulator untuk mengirim HTTP POST telemetry ke farm-data-service.
+
+Frontend:
+
+1. HTML, CSS, JavaScript vanilla
+   Dipakai untuk dashboard web.
+
+2. Chart.js
+   Dipakai untuk menampilkan grafik harian suhu, kelembaban, cahaya, dan energi.
+
+3. Nginx
+   Dipakai untuk menyajikan file static frontend dan reverse proxy ke backend.
+
+Storage dan database:
+
+1. PostgreSQL 16 Alpine
+   Database lokal untuk menyimpan sensor_data dan crop_config.
+
+2. MinIO
+   Storage lokal yang kompatibel dengan S3. Ini menggantikan Amazon S3 saat development lokal.
+
+Container dan orkestrasi:
+
+1. Docker
+   Untuk build image tiap service.
+
+2. Docker Compose
+   Untuk menjalankan semua service lokal dalam satu command.
+
+3. Kubernetes/MicroK8s
+   Untuk menjalankan stack dalam cluster lokal.
+
+4. Kubernetes ConfigMap
+   Untuk konfigurasi non-rahasia seperti interval simulator, endpoint service, dan parameter crop.
+
+5. Kubernetes Secret
+   Untuk konfigurasi sensitif seperti DATABASE_URL, password PostgreSQL, dan credential MinIO lokal.
+
+6. Kubernetes Deployment
+   Untuk menjalankan Pod aplikasi dengan replica.
+
+7. Kubernetes Service ClusterIP
+   Untuk komunikasi antar service di dalam cluster.
+
+8. Kubernetes PersistentVolumeClaim
+   Untuk menyimpan data PostgreSQL dan MinIO agar tidak hilang ketika Pod restart.
+
+9. Kubernetes HorizontalPodAutoscaler atau HPA
+   Untuk autoscaling berdasarkan CPU.
+
+10. Kubernetes probes
+    Startup probe, readiness probe, dan liveness probe dipakai agar Kubernetes tahu kapan container siap, sehat, atau perlu restart.
+
+
+4. STRUKTUR KOMPONEN PROJECT
+----------------------------
+
+File dan direktori penting:
+
+1. docker-compose.local.yml
+   Menjalankan semua service lokal: PostgreSQL, MinIO, farm-data-service, storage-service, frontend, dan iot-simulator.
+
+2. LOCAL_RUN.md
+   Panduan menjalankan stack lokal via Docker Compose.
+
+3. KUBERNETES_LOCAL.md
+   Panduan menjalankan stack di Kubernetes lokal/MicroK8s.
+
+4. k8s-local/
+   Manifest pendukung Kubernetes lokal:
+   - 00-namespaces.yaml
+   - 01-serviceaccounts.yaml
+   - 02-config.yaml
+   - 03-postgres.yaml
+   - 04-minio.yaml
+
+5. farm-data-service/
+   Backend data sensor dan crop monitoring.
+
+6. storage-service/
+   Backend file storage/laporan.
+
+7. iot-simulator/
+   Simulator sensor IoT.
+
+8. frontend-app/
+   Dashboard web dan konfigurasi Nginx.
+
+
+5. ALUR LOGIKA SISTEM
+---------------------
+
+Alur data telemetry:
+
+1. iot-simulator membuat data sensor tiruan.
+2. Data sensor berisi:
+   - temperature_c
+   - humidity_percent
+   - light_lux
+   - energy_kwh
+3. iot-simulator mengirim data ke farm-data-service melalui endpoint POST /telemetry.
+4. farm-data-service memvalidasi data dengan Pydantic.
+5. farm-data-service menyimpan data ke tabel sensor_data di PostgreSQL.
+6. Frontend mengambil data terbaru dari GET /api/metrics/latest.
+7. Nginx frontend meneruskan /api/... ke farm-data-service.
+8. Frontend menampilkan data pada card dashboard.
+9. Frontend mengambil data harian dari GET /api/metrics/daily.
+10. Chart.js menggambar grafik harian suhu, kelembaban, cahaya, dan energi.
+
+Alur progress panen:
+
+1. farm-data-service menyimpan konfigurasi crop pada tabel crop_config.
+2. Saat service start, jika crop_config belum ada, service membuat default config.
+3. Default config diambil dari environment:
+   - CROP_DAYS_SINCE_PLANTING
+   - CROP_EXPECTED_HARVEST_DAYS
+   - CROP_TARGET_ENERGY_KWH_PER_DAY
+4. Endpoint GET /harvest-progress menghitung:
+   - tanggal tanam
+   - total hari target panen
+   - hari yang sudah berjalan
+   - persentase progress
+   - status growing atau harvest_ready
+5. Frontend menampilkan progress bar menuju panen.
+
+Alur konsumsi energi:
+
+1. farm-data-service mengambil semua data sensor hari ini.
+2. Service menghitung total energy_kwh hari ini.
+3. Total energi dibandingkan dengan target harian dari crop_config.
+4. Endpoint GET /energy-consumption mengembalikan:
+   - today_energy_kwh
+   - target_energy_kwh_per_day
+   - percentage_of_target
+   - status ok atau exceeded
+
+Alur file/laporan:
+
+1. User memilih file laporan di frontend.
+2. Frontend mengirim file ke POST /storage/upload.
+3. Nginx frontend meneruskan /storage/... ke storage-service.
+4. storage-service menerima file dengan FastAPI UploadFile.
+5. storage-service memakai boto3 untuk upload file ke bucket reports.
+6. Pada lokal, bucket reports ada di MinIO.
+7. Frontend mengambil daftar file dari GET /storage/files.
+8. User bisa download file melalui GET /storage/files/{filename}.
+9. User bisa hapus file melalui DELETE /storage/files/{filename}.
+
+
+6. DETAIL farm-data-service
+---------------------------
+
+Lokasi utama:
+farm-data-service/app.py
+
+Fungsi utama:
+
+1. Membuat koneksi ke PostgreSQL melalui DATABASE_URL.
+2. Membuat tabel sensor_data.
+3. Membuat tabel crop_config.
+4. Menyimpan data telemetry sensor.
+5. Mengambil data sensor terbaru.
+6. Mengambil data sensor harian.
+7. Menghitung progress panen.
+8. Menghitung konsumsi energi.
+9. Menyediakan endpoint health check.
+
+Model database:
+
+1. SensorData
+   Tabel: sensor_data
+   Kolom:
+   - id
+   - timestamp
+   - temperature_c
+   - humidity_percent
+   - light_lux
+   - energy_kwh
+
+2. CropConfig
+   Tabel: crop_config
+   Kolom:
+   - id
+   - planting_date
+   - expected_harvest_days
+   - target_energy_kwh_per_day
+
+Endpoint penting:
+
+1. POST /telemetry
+   Menerima data sensor dari simulator dan menyimpan ke database.
+
+2. GET /metrics/latest
+   Mengambil data sensor terbaru.
+
+3. GET /metrics/daily
+   Mengambil seluruh data sensor pada tanggal tertentu atau hari ini.
+
+4. GET /harvest-progress
+   Menghitung progress menuju panen.
+
+5. GET /energy-consumption
+   Menghitung total energi hari ini dibanding target.
+
+6. GET /health
+   Mengembalikan status service.
+
+Logika startup:
+
+1. FastAPI memakai lifespan.
+2. Saat aplikasi start, init_database() dijalankan.
+3. init_database() mencoba membuat tabel dengan SQLAlchemy.
+4. Jika database belum siap, service retry beberapa kali sesuai DB_INIT_RETRIES dan DB_INIT_DELAY_SECONDS.
+5. Setelah tabel siap, seed_crop_config() membuat konfigurasi crop default jika belum ada data.
+
+Kenapa retry diperlukan:
+Di container/Kubernetes, PostgreSQL bisa saja belum siap saat farm-data-service mulai berjalan. Retry membuat service lebih tahan terhadap urutan startup yang tidak selalu pasti.
+
+
+7. DETAIL storage-service
+-------------------------
+
+Lokasi utama:
+storage-service/app.py
+
+Fungsi utama:
+
+1. Membuat koneksi boto3 ke S3-compatible endpoint.
+2. Pada lokal, endpoint diarahkan ke MinIO.
+3. Memastikan bucket reports tersedia.
+4. Upload file.
+5. List file.
+6. Download file.
+7. Delete file.
+8. Health check.
+
+Endpoint penting:
+
+1. POST /upload
+   Upload file ke bucket.
+
+2. GET /files
+   Melihat daftar file dalam bucket.
+
+3. GET /files/{filename}
+   Download file tertentu.
+
+4. DELETE /files/{filename}
+   Menghapus file tertentu dari bucket.
+
+5. GET /health
+   Mengecek service.
+
+Logika startup:
+
+1. FastAPI menjalankan ensure_bucket() saat startup.
+2. ensure_bucket() mencoba head_bucket.
+3. Jika bucket belum ada, service membuat bucket.
+4. Jika MinIO belum siap, service retry berdasarkan S3_INIT_RETRIES dan S3_INIT_DELAY_SECONDS.
+
+Catatan cloud:
+Pada AWS nanti, storage-service sebaiknya tidak memakai S3_ACCESS_KEY dan S3_SECRET_KEY statis. Akses ke S3 sebaiknya memakai IRSA agar Pod mendapat permission dari IAM Role.
+
+
+8. DETAIL iot-simulator
+-----------------------
+
+Lokasi utama:
+iot-simulator/simulator.py
+
+Fungsi utama:
+
+1. Membuat data sensor tiruan.
+2. Mengirim data ke farm-data-service setiap INTERVAL_SECONDS.
+3. Endpoint target diambil dari FARM_DATA_URL.
+
+Sensor yang disimulasikan:
+
+1. temperature_c
+   Suhu greenhouse.
+
+2. humidity_percent
+   Kelembaban udara.
+
+3. light_lux
+   Intensitas cahaya.
+
+4. energy_kwh
+   Konsumsi energi.
+
+Logika data sensor:
+
+1. Nilai awal dibuat secara random dalam rentang yang masuk akal.
+2. Setiap siklus, nilai berubah sedikit demi sedikit.
+3. Fungsi clamp() menjaga nilai tetap dalam batas minimum dan maksimum.
+4. Pola ini membuat data terlihat lebih natural daripada random total setiap menit.
+
+Interval lokal:
+Simulator mengirim telemetry setiap 60 detik.
+
+
+9. DETAIL FRONTEND
+------------------
+
+Lokasi utama:
+
+1. frontend-app/html/index.html
+2. frontend-app/html/style.css
+3. frontend-app/html/app.js
+4. frontend-app/nginx.conf
+5. frontend-app/nginx.local.conf
+
+Fungsi frontend:
+
+1. Menampilkan brand/dashboard Soermin Farm - Greenhouse Selederi.
+2. Menampilkan card metric:
+   - Suhu
+   - Kelembaban
+   - Cahaya
+   - Energi
+3. Menampilkan progress menuju panen.
+4. Menampilkan fase tanaman dan estimasi panen.
+5. Menampilkan penggunaan aktuator.
+6. Menampilkan grafik harian memakai Chart.js.
+7. Menyediakan fitur upload laporan.
+8. Menampilkan daftar laporan.
+9. Menyediakan download dan delete laporan.
+
+Logika frontend API:
+
+1. FARM_DATA_API = "/api"
+2. STORAGE_API = "/storage"
+3. Frontend tidak memanggil backend dengan URL service Kubernetes secara langsung.
+4. Frontend cukup memanggil relative URL.
+5. Nginx bertugas meneruskan request ke backend yang sesuai.
+
+Kenapa memakai relative URL:
+Browser user tidak bisa resolve DNS internal Kubernetes seperti farm-data-service.farm-db-svc.svc.cluster.local. Karena itu request browser diarahkan ke domain frontend dulu, lalu Nginx di dalam cluster meneruskan ke service internal.
+
+
+10. DETAIL NGINX FRONTEND
+-------------------------
+
+Ada dua konfigurasi:
+
+1. frontend-app/nginx.local.conf
+   Dipakai untuk Docker Compose lokal.
+   Upstream:
+   - farm-data-service:8000
+   - storage-service:8000
+
+2. frontend-app/nginx.conf
+   Dipakai untuk Kubernetes lokal.
+   Upstream:
+   - farm-data-service.farm-db-svc.svc.cluster.local:8000
+   - storage-service.storage-svc.svc.cluster.local:8000
+
+Perubahan penting pada nginx.conf Kubernetes:
+
+1. Menambahkan resolver MicroK8s:
+   resolver 10.152.183.10 valid=10s ipv6=off;
+
+2. Menyimpan upstream dalam variable:
+   - farm_data_upstream
+   - storage_upstream
+
+3. Menambahkan rewrite:
+   - /api/health menjadi /health sebelum dikirim ke farm-data-service
+   - /storage/health menjadi /health sebelum dikirim ke storage-service
+
+Masalah yang diselesaikan:
+
+1. Nginx dapat gagal start jika DNS service Kubernetes belum resolve pada saat container start.
+2. Dengan resolver dan variable upstream, Nginx bisa resolve DNS saat runtime.
+3. Rewrite path mencegah backend menerima path yang salah seperti /api/metrics/latest, karena backend sebenarnya punya endpoint /metrics/latest.
+
+
+11. DOCKER COMPOSE LOKAL
+------------------------
+
+File:
+docker-compose.local.yml
+
+Service yang dijalankan:
+
+1. postgres
+   Image: postgres:16-alpine
+   Database: farming
+   User: postgres
+   Password: secret
+   Port host: 5432
+
+2. minio
+   Image: minio/minio:latest
+   API port: 9000
+   Console port: 9001
+   User: admin
+   Password: minio123
+
+3. farm-data-service
+   Build dari ./farm-data-service
+   Port host: 8000
+   Koneksi database ke postgres service Docker Compose.
+
+4. storage-service
+   Build dari ./storage-service
+   Port host: 8001
+   Koneksi S3-compatible ke minio service Docker Compose.
+
+5. frontend
+   Build dari ./frontend-app
+   Port host: 8080
+   Nginx memakai nginx.local.conf.
+
+6. iot-simulator
+   Build dari ./iot-simulator
+   Mengirim telemetry ke farm-data-service setiap 60 detik.
+
+Command menjalankan:
+docker compose -f docker-compose.local.yml up --build
+
+Endpoint Docker Compose lokal:
+
+1. Dashboard:
+   http://localhost:8080
+
+2. Farm Data API docs:
+   http://localhost:8000/docs
+
+3. Storage API docs:
+   http://localhost:8001/docs
+
+4. MinIO console:
+   http://localhost:9001
+
+
+12. KUBERNETES LOKAL YANG SUDAH DIRAPIKAN
+-----------------------------------------
+
+Kita sudah membuat dan merapikan folder:
+k8s-local/
+
+Isi file:
+
+1. 00-namespaces.yaml
+   Membuat namespace:
+   - farm-db-svc
+   - storage-svc
+   - frontend-svc
+
+2. 01-serviceaccounts.yaml
+   Membuat ServiceAccount:
+   - postgres
+   - farm-data-service
+   - iot-simulator
+   - minio
+   - storage-service
+   - frontend
+
+3. 02-config.yaml
+   Membuat ConfigMap dan Secret:
+   - farm-data-config
+   - farm-data-secret
+   - postgres-secret
+   - iot-simulator-config
+   - storage-config
+   - storage-secret
+   - minio-secret
+
+4. 03-postgres.yaml
+   Membuat PostgreSQL lokal di Kubernetes:
+   - PVC postgres-data
+   - Deployment postgres-postgresql
+   - Service postgres-local
+
+5. 04-minio.yaml
+   Membuat MinIO lokal di Kubernetes:
+   - PVC minio-data
+   - Deployment minio-local
+   - Service minio-local
+
+Alasan pemisahan namespace:
+
+1. farm-db-svc
+   Untuk database dan service data farming.
+
+2. storage-svc
+   Untuk MinIO dan storage-service.
+
+3. frontend-svc
+   Untuk frontend dashboard.
+
+Pemisahan ini membuat arsitektur lebih rapi dan mendekati praktik deployment di Kubernetes/EKS.
+
+
+13. MANIFEST APLIKASI YANG SUDAH DIRAPIKAN
+------------------------------------------
+
+farm-data-service/farmdata-deploy.yaml:
+
+1. Namespace: farm-db-svc.
+2. Deployment replica: 2.
+3. ServiceAccount: farm-data-service.
+4. Image: localhost:32000/farm-data-service:latest.
+5. envFrom dari ConfigMap dan Secret.
+6. Service type ClusterIP.
+7. Startup probe ke /health.
+8. Readiness probe ke /health.
+9. Liveness probe ke /health.
+10. Resource requests dan limits.
+11. HPA min 2 max 5 target CPU 50 persen.
+
+storage-service/storage-deploy.yaml:
+
+1. Namespace: storage-svc.
+2. Deployment replica: 2.
+3. ServiceAccount: storage-service.
+4. Image: localhost:32000/storage-service:latest.
+5. envFrom dari ConfigMap dan Secret.
+6. Service type ClusterIP.
+7. Startup, readiness, dan liveness probe.
+8. Resource requests dan limits.
+9. HPA min 2 max 5 target CPU 50 persen.
+
+frontend-app/frontend-deploy.yaml:
+
+1. Namespace: frontend-svc.
+2. Deployment replica: 2.
+3. ServiceAccount: frontend.
+4. Image: localhost:32000/frontend:latest.
+5. Service type ClusterIP.
+6. Readiness dan liveness probe ke /.
+7. Resource requests dan limits.
+8. HPA min 2 max 4 target CPU 60 persen.
+
+iot-simulator/simulator-deploy.yaml:
+
+1. Namespace: farm-db-svc.
+2. Deployment replica: 1.
+3. ServiceAccount: iot-simulator.
+4. Image: localhost:32000/iot-simulator:latest.
+5. envFrom dari ConfigMap.
+6. Readiness probe mengecek health farm-data-service.
+7. Resource requests dan limits.
+
+Catatan imagePullPolicy:
+Semua image aplikasi memakai imagePullPolicy: IfNotPresent. Ini cocok untuk lokal karena image bisa di-import langsung ke containerd MicroK8s jika registry lokal bermasalah.
+
+
+14. KUBERNETES ADD-ON YANG DIPAKAI
+----------------------------------
+
+Pada MicroK8s, add-on yang relevan:
+
+1. dns
+   Agar service bisa dipanggil via DNS internal Kubernetes.
+
+2. hostpath-storage
+   Agar PVC PostgreSQL dan MinIO bisa dibuat di cluster lokal.
+
+3. metrics-server
+   Agar HPA bisa membaca CPU/memory metrics.
+
+4. registry
+   Untuk registry lokal localhost:32000.
+
+Command referensi:
+microk8s enable dns hostpath-storage metrics-server registry
+
+
+15. BUILD IMAGE DAN DEPLOYMENT KUBERNETES LOKAL
+-----------------------------------------------
+
+Image yang sudah disiapkan:
+
+1. localhost:32000/farm-data-service:latest
+2. localhost:32000/storage-service:latest
+3. localhost:32000/frontend:latest
+4. localhost:32000/iot-simulator:latest
+
+Build command:
+
+docker build -t localhost:32000/farm-data-service:latest farm-data-service
+docker build -t localhost:32000/storage-service:latest storage-service
+docker build -t localhost:32000/frontend:latest frontend-app
+docker build -t localhost:32000/iot-simulator:latest iot-simulator
+
+Cara normal:
+
+docker push localhost:32000/farm-data-service:latest
+docker push localhost:32000/storage-service:latest
+docker push localhost:32000/frontend:latest
+docker push localhost:32000/iot-simulator:latest
+
+Fallback yang sudah dipakai:
+Karena registry MicroK8s sempat bermasalah akibat resource lama/stale node, image di-save lalu di-import langsung ke containerd MicroK8s.
+
+Pola fallback:
+
+docker save -o /tmp/farm-data-service.tar localhost:32000/farm-data-service:latest
+microk8s images import /tmp/farm-data-service.tar
+
+Hal yang sama dilakukan untuk storage-service, frontend, dan iot-simulator.
+
+
+16. MASALAH KUBERNETES YANG SUDAH DISELESAIKAN
+----------------------------------------------
+
+Masalah:
+Cluster MicroK8s sempat punya node lama bernama staging dengan status NotReady. Node aktif yang benar adalah app-server.
+
+Dampak:
+
+1. Beberapa pod atau resource lama terkait registry/storage bisa tersangkut ke node lama.
+2. Registry localhost:32000 sempat tidak bisa dipakai normal.
+3. Ada indikasi masalah jaringan/Calico akibat IP conflict dari node lama.
+
+Yang dilakukan:
+
+1. Menghapus stale node staging dari cluster.
+2. Restart Calico daemonset.
+3. Memastikan node aktif app-server kembali Ready.
+4. Menggunakan fallback import image langsung ke MicroK8s containerd.
+
+Status setelah diperbaiki:
+
+1. Node aktif: app-server.
+2. Node status: Ready.
+3. Internal IP aktif yang pernah diverifikasi: 100.87.119.107.
+4. Service aplikasi berjalan dengan pod ready.
+
+
+17. STATUS VALIDASI TERAKHIR
+----------------------------
+
+Berdasarkan pengecekan terakhir yang sudah dilakukan:
+
+Namespace farm-db-svc:
+
+1. farm-data-service berjalan 2 replica.
+2. iot-simulator berjalan 1 replica.
+3. postgres-postgresql berjalan 1 replica.
+
+Namespace storage-svc:
+
+1. storage-service berjalan 2 replica.
+2. minio-local berjalan 1 replica.
+
+Namespace frontend-svc:
+
+1. frontend berjalan 2 replica.
+
+HPA:
+
+1. farm-data-service-hpa aktif.
+2. storage-service-hpa aktif.
+3. frontend-hpa aktif.
+
+Tes health:
+
+1. Dari frontend pod, /api/health berhasil mengembalikan {"status":"ok"}.
+2. Dari frontend pod, /storage/health berhasil mengembalikan {"status":"ok"}.
+3. farm-data-service /metrics/latest berhasil mengembalikan data telemetry.
+4. storage-service /files berhasil mengembalikan list file, saat itu kosong [].
+
+Kesimpulan validasi:
+Alur internal Kubernetes sudah jalan:
+frontend -> Nginx proxy -> backend -> PostgreSQL/MinIO.
+
+
+18. CARA MENJALANKAN KUBERNETES LOKAL
+-------------------------------------
+
+Aktifkan add-on MicroK8s:
+
+microk8s enable dns hostpath-storage metrics-server registry
+
+Build image:
+
+docker build -t localhost:32000/farm-data-service:latest farm-data-service
+docker build -t localhost:32000/storage-service:latest storage-service
+docker build -t localhost:32000/frontend:latest frontend-app
+docker build -t localhost:32000/iot-simulator:latest iot-simulator
+
+Push image ke registry lokal:
+
+docker push localhost:32000/farm-data-service:latest
+docker push localhost:32000/storage-service:latest
+docker push localhost:32000/frontend:latest
+docker push localhost:32000/iot-simulator:latest
+
+Apply resource pendukung:
+
+microk8s kubectl apply -f k8s-local/
+
+Apply aplikasi:
+
+microk8s kubectl apply -f farm-data-service/farmdata-deploy.yaml
+microk8s kubectl apply -f storage-service/storage-deploy.yaml
+microk8s kubectl apply -f iot-simulator/simulator-deploy.yaml
+microk8s kubectl apply -f frontend-app/frontend-deploy.yaml
+
+Cek status:
+
+microk8s kubectl get pods -n farm-db-svc
+microk8s kubectl get pods -n storage-svc
+microk8s kubectl get pods -n frontend-svc
+microk8s kubectl get hpa -A
+
+Akses dashboard dari mesin yang sama:
+
+microk8s kubectl -n frontend-svc port-forward svc/frontend 8080:80
+
+Lalu buka:
+http://localhost:8080
+
+Akses dashboard dari mesin lain:
+
+microk8s kubectl -n frontend-svc port-forward --address 0.0.0.0 svc/frontend 8080:80
+
+Lalu buka:
+http://IP_SERVER_AKTIF:8080
+
+Catatan:
+Service frontend bertipe ClusterIP. Artinya service tidak otomatis bisa diakses langsung lewat IP node. Untuk akses browser perlu port-forward, NodePort, LoadBalancer, atau Ingress.
+
+
+19. CATATAN RESOURCE LAMA/STAGING
+---------------------------------
+
+Masih ada kemungkinan resource lama dari percobaan sebelumnya, misalnya deployment/service MinIO lama atau PVC lama. Kita sengaja belum menghapus semua resource lama secara agresif karena:
+
+1. Menghapus PVC bisa menghapus data.
+2. Perlu dibedakan mana resource aktif dan mana resource sisa.
+3. Cleanup sebaiknya dilakukan terkontrol.
+
+Rekomendasi cleanup berikutnya:
+
+1. List semua resource per namespace.
+2. Identifikasi resource aktif:
+   - postgres-local
+   - minio-local
+   - farm-data-service
+   - storage-service
+   - frontend
+   - iot-simulator
+3. Hapus deployment/service lama yang tidak dipakai.
+4. Jangan hapus PVC sebelum yakin data tidak diperlukan.
+
+
+20. APA YANG SUDAH SESUAI DENGAN TARGET PROJECT
+-----------------------------------------------
+
+Yang sudah sesuai:
+
+1. Ada frontend dashboard.
+2. Ada backend farm-data-service.
+3. Ada backend storage-service.
+4. Ada simulator IoT.
+5. Ada PostgreSQL lokal.
+6. Ada storage S3-compatible lokal menggunakan MinIO.
+7. Ada Dockerfile untuk service.
+8. Ada Docker Compose lokal.
+9. Ada manifest Kubernetes.
+10. Ada namespace Kubernetes.
+11. Ada ServiceAccount Kubernetes.
+12. Ada ConfigMap dan Secret.
+13. Ada resource requests dan limits.
+14. Ada readiness/liveness/startup probe.
+15. Ada HPA.
+16. Ada PVC untuk database dan MinIO.
+17. Ada dokumentasi LOCAL_RUN.md.
+18. Ada dokumentasi KUBERNETES_LOCAL.md.
+19. Alur frontend ke backend sudah memakai Nginx reverse proxy.
+20. Alur simulator ke database sudah berjalan.
+21. Alur upload file ke storage sudah tersedia.
+
+
+21. YANG BELUM SELESAI
+----------------------
+
+Yang belum selesai untuk target akhir cloud:
+
+1. Cleanup resource Kubernetes lama.
+2. Git repository dan tagging versi image yang rapi.
+3. Push image ke Amazon ECR.
+4. Terraform atau CDK untuk infrastructure as code.
+5. VPC AWS untuk EKS.
+6. EKS cluster production/dev.
+7. RDS PostgreSQL AWS.
+8. S3 bucket AWS.
+9. IAM Role dan policy untuk service.
+10. IRSA untuk farm-data-service dan storage-service.
+11. Migrasi konfigurasi dari MinIO ke S3 AWS.
+12. Migrasi database dari PostgreSQL lokal ke RDS.
+13. Backup dan restore guide.
+14. Cost tagging dan budget alert.
+15. CI/CD pipeline.
+16. Observability/logging yang lebih rapi.
+17. Ingress atau LoadBalancer untuk akses frontend di cloud.
+18. Hardening security seperti non-root untuk semua container, network policy, secret management, dan image scanning.
+
+
+22. ROADMAP TAHAP SELANJUTNYA
+-----------------------------
+
+Tahap 1: Cleanup Kubernetes lokal
+
+Tujuan:
+Membersihkan resource lama agar cluster lokal tidak membingungkan.
+
+Pekerjaan:
+
+1. List semua deployment, service, pod, pvc, hpa, configmap, secret.
+2. Tandai resource aktif dan resource sisa.
+3. Hapus deployment/service lama yang tidak dipakai.
+4. Hapus PVC hanya jika sudah yakin data boleh hilang.
+5. Update KUBERNETES_LOCAL.md jika ada perubahan command.
+
+Tahap 2: Rapikan image dan versioning
+
+Tujuan:
+Membuat image lebih siap untuk cloud.
+
+Pekerjaan:
+
+1. Buat tag versioned, misalnya v0.1.0.
+2. Hindari hanya bergantung pada latest.
+3. Pastikan Dockerfile semua service aman dan konsisten.
+4. Pertimbangkan user non-root untuk iot-simulator juga.
+5. Tambahkan .dockerignore jika belum ada.
+
+Tahap 3: Siapkan ECR
+
+Tujuan:
+Menaruh image di registry AWS.
+
+Pekerjaan:
+
+1. Buat repository ECR:
+   - farm-data-service
+   - storage-service
+   - frontend
+   - iot-simulator
+2. Login Docker ke ECR.
+3. Tag image lokal menjadi image ECR.
+4. Push image ke ECR.
+5. Update manifest Kubernetes agar image mengarah ke ECR.
+
+Tahap 4: Infrastructure as Code
+
+Tujuan:
+Membuat infrastruktur AWS secara repeatable.
+
+Pekerjaan:
+
+1. Buat Terraform/CDK untuk VPC.
+2. Buat Terraform/CDK untuk EKS.
+3. Buat Terraform/CDK untuk ECR.
+4. Buat Terraform/CDK untuk RDS PostgreSQL.
+5. Buat Terraform/CDK untuk S3 bucket.
+6. Buat IAM Role dan policy.
+7. Buat OIDC provider untuk EKS.
+
+Tahap 5: IRSA
+
+Tujuan:
+Mengganti static credential dengan IAM Role.
+
+Pekerjaan:
+
+1. Buat IAM policy untuk akses S3.
+2. Buat IAM Role yang trust ke ServiceAccount Kubernetes.
+3. Tambahkan annotation eks.amazonaws.com/role-arn pada ServiceAccount.
+4. Hapus S3_ACCESS_KEY dan S3_SECRET_KEY dari Secret cloud.
+5. Uji storage-service upload/list/download/delete ke S3 AWS.
+
+Tahap 6: Migrasi database ke RDS
+
+Tujuan:
+Mengganti PostgreSQL lokal di cluster dengan RDS managed database.
+
+Pekerjaan:
+
+1. Buat RDS PostgreSQL.
+2. Atur security group agar EKS bisa konek ke RDS.
+3. Update DATABASE_URL ke endpoint RDS.
+4. Simpan password di Secret atau AWS Secrets Manager.
+5. Uji farm-data-service startup, create table, telemetry, dan query metric.
+
+Tahap 7: Deploy ke EKS
+
+Tujuan:
+Menjalankan aplikasi di Kubernetes AWS.
+
+Pekerjaan:
+
+1. Deploy namespace, ServiceAccount, ConfigMap, dan Secret.
+2. Deploy farm-data-service, storage-service, frontend, dan iot-simulator.
+3. Gunakan image dari ECR.
+4. Buat Ingress/LoadBalancer untuk frontend.
+5. Uji akses dashboard dari browser.
+6. Uji semua API.
+
+Tahap 8: Backup, restore, dan cost control
+
+Tujuan:
+Melengkapi syarat operasional cloud.
+
+Pekerjaan:
+
+1. Aktifkan backup RDS.
+2. Buat panduan restore RDS.
+3. Aktifkan versioning atau lifecycle policy S3 jika diperlukan.
+4. Tambahkan tags pada resource AWS.
+5. Buat AWS Budget alert.
+6. Dokumentasikan estimasi biaya.
+
+Tahap 9: CI/CD
+
+Tujuan:
+Membuat proses build dan deploy lebih otomatis.
+
+Pekerjaan:
+
+1. Buat pipeline build image.
+2. Push image ke ECR.
+3. Jalankan test minimal.
+4. Deploy ke EKS.
+5. Gunakan environment staging/dev.
+
+Tahap 10: Finalisasi dokumentasi dan presentasi
+
+Tujuan:
+Membuat project siap dikumpulkan/dipresentasikan.
+
+Pekerjaan:
+
+1. Update README atau docs utama.
+2. Update LOCAL_RUN.md.
+3. Update KUBERNETES_LOCAL.md.
+4. Buat arsitektur diagram.
+5. Buat script demo.
+6. Buat checklist testing.
+7. Buat catatan known limitation.
+
+
+23. KESIMPULAN
+--------------
+
+Project SmartFarming sudah memiliki fondasi lokal yang kuat. Komponen utama sudah tersedia dan sudah saling terhubung:
+
+1. Simulator mengirim telemetry.
+2. farm-data-service menerima dan menyimpan telemetry ke PostgreSQL.
+3. Frontend membaca metric dan menampilkan dashboard.
+4. storage-service mengelola file laporan.
+5. MinIO menyimpan file laporan.
+6. Docker Compose bisa menjalankan stack lokal.
+7. Kubernetes lokal/MicroK8s sudah dirapikan dengan namespace, service account, config, secret, PVC, probes, resource limits, dan HPA.
+
+Status terbaik saat ini:
+Lokal sudah komplit untuk tahap development dan pembuktian alur. Tahap berikutnya adalah membersihkan resource Kubernetes lama, lalu mulai menyiapkan jalur cloud AWS: ECR, EKS, RDS, S3, IRSA, Terraform/CDK, backup, cost control, dan CI/CD.
+
