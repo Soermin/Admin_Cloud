@@ -9,36 +9,53 @@ from botocore.exceptions import ClientError
 from fastapi import FastAPI, File, HTTPException, UploadFile
 from fastapi.responses import StreamingResponse
 
-S3_ENDPOINT = os.getenv("S3_ENDPOINT", "http://minio.storage-svc.svc.cluster.local:9000")
-S3_ACCESS_KEY = os.getenv("S3_ACCESS_KEY", "admin")
-S3_SECRET_KEY = os.getenv("S3_SECRET_KEY", "minio123")
-S3_BUCKET = os.getenv("S3_BUCKET", "reports")
+AWS_REGION = os.getenv("AWS_REGION", "ap-southeast-1")
+S3_BUCKET = os.getenv("S3_BUCKET")
+
 S3_INIT_RETRIES = int(os.getenv("S3_INIT_RETRIES", "30"))
 S3_INIT_DELAY_SECONDS = float(os.getenv("S3_INIT_DELAY_SECONDS", "2"))
 
+if not S3_BUCKET:
+    raise RuntimeError("S3_BUCKET environment variable is required")
+
+# AWS S3 client.
+# Credential tidak ditulis manual.
+# Di EKS, boto3 akan mengambil temporary credentials dari IRSA.
 s3_client = boto3.client(
     "s3",
-    endpoint_url=S3_ENDPOINT,
-    aws_access_key_id=S3_ACCESS_KEY,
-    aws_secret_access_key=S3_SECRET_KEY,
-    config=Config(signature_version="s3v4", s3={"addressing_style": "path"}),
-    use_ssl=False,
-    verify=False,
+    region_name=AWS_REGION,
+    config=Config(signature_version="s3v4"),
 )
 
 
 def ensure_bucket():
+    """
+    Memastikan bucket S3 bisa diakses.
+
+    Bucket tidak dibuat otomatis oleh aplikasi.
+    Bucket harus dibuat oleh AWS CLI / Terraform / CDK supaya:
+    - versioning bisa dikontrol,
+    - public access block bisa dikontrol,
+    - tagging bisa dikontrol,
+    - lifecycle policy bisa dikontrol.
+    """
+
     last_error = None
+
     for attempt in range(1, S3_INIT_RETRIES + 1):
         try:
             s3_client.head_bucket(Bucket=S3_BUCKET)
             return
+
         except ClientError as exc:
-            code = exc.response.get("Error", {}).get("Code")
-            if code in ("404", "NoSuchBucket", "NotFound"):
-                s3_client.create_bucket(Bucket=S3_BUCKET)
-                return
             last_error = exc
+            code = exc.response.get("Error", {}).get("Code")
+
+            if code in ("404", "NoSuchBucket", "NotFound"):
+                raise RuntimeError(
+                    f"S3 bucket '{S3_BUCKET}' does not exist or is not accessible"
+                )
+
         except Exception as exc:
             last_error = exc
 
@@ -54,7 +71,7 @@ async def lifespan(app: FastAPI):
     yield
 
 
-app = FastAPI(title="Storage Service", lifespan=lifespan)
+app = FastAPI(title="Storage Service")
 
 
 @app.post("/upload")
@@ -106,4 +123,9 @@ async def delete_file(filename: str):
 
 @app.get("/health")
 async def health():
-    return {"status": "ok"}
+    return {
+        "status": "ok",
+        "storage": "aws-s3",
+        "bucket": S3_BUCKET,
+        "region": AWS_REGION,
+    }
