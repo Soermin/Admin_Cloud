@@ -4,7 +4,7 @@ import time
 
 import requests
 
-FARM_DATA_URL = os.getenv("FARM_DATA_URL", "http://farm-data-service.farm-db-svc.svc.cluster.local:8000")
+FARM_DATA_URL = os.getenv("FARM_DATA_URL", "http://farm-data-service.farm-data.svc.cluster.local:8000/telemetry")
 INTERVAL_SECONDS = int(os.getenv("INTERVAL_SECONDS", "60"))
 
 sensor_state = {
