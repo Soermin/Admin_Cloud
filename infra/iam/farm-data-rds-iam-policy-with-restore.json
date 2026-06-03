@@ -1,0 +1,16 @@
+{
+  "Version": "2012-10-17",
+  "Statement": [
+    {
+      "Sid": "AllowRDSIAMConnectOriginalAndRestore",
+      "Effect": "Allow",
+      "Action": [
+        "rds-db:connect"
+      ],
+      "Resource": [
+        "arn:aws:rds-db:ap-southeast-1:082228066750:dbuser:db-AWC3JTZU4I54UQYAUPVLDZ2WLU/farm_app_user",
+        "arn:aws:rds-db:ap-southeast-1:082228066750:dbuser:db-XPOA5KCRXVNI2YZNWOJ4MAKCVM/farm_app_user"
+      ]
+    }
+  ]
+}
