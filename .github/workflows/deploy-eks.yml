@@ -1,0 +1,102 @@
+name: Deploy SmartFarming to EKS
+
+on:
+  push:
+    branches:
+      - main
+  workflow_dispatch:
+
+permissions:
+  id-token: write
+  contents: read
+
+env:
+  AWS_REGION: ${{ vars.AWS_REGION }}
+  AWS_ACCOUNT_ID: ${{ vars.AWS_ACCOUNT_ID }}
+  EKS_CLUSTER_NAME: ${{ vars.EKS_CLUSTER_NAME }}
+  IMAGE_TAG: ${{ github.sha }}
+
+jobs:
+  deploy:
+    name: Build, Push, and Deploy
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Configure AWS credentials via OIDC
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          role-to-assume: ${{ secrets.AWS_GHA_ROLE_ARN }}
+          aws-region: ${{ env.AWS_REGION }}
+
+      - name: Verify AWS identity
+        run: aws sts get-caller-identity
+
+      - name: Login to Amazon ECR
+        uses: aws-actions/amazon-ecr-login@v2
+
+      - name: Build and push farm-data-service
+        run: |
+          IMAGE_URI=${AWS_ACCOUNT_ID}.dkr.ecr.${AWS_REGION}.amazonaws.com/farm-data-service:${IMAGE_TAG}
+          docker build -t $IMAGE_URI farm-data-service
+          docker push $IMAGE_URI
+          echo "FARM_DATA_IMAGE=$IMAGE_URI" >> $GITHUB_ENV
+
+      - name: Build and push storage-service
+        run: |
+          IMAGE_URI=${AWS_ACCOUNT_ID}.dkr.ecr.${AWS_REGION}.amazonaws.com/storage-service:${IMAGE_TAG}
+          docker build -t $IMAGE_URI storage-service
+          docker push $IMAGE_URI
+          echo "STORAGE_IMAGE=$IMAGE_URI" >> $GITHUB_ENV
+
+      - name: Build and push frontend
+        run: |
+          IMAGE_URI=${AWS_ACCOUNT_ID}.dkr.ecr.${AWS_REGION}.amazonaws.com/frontend:${IMAGE_TAG}
+          docker build -t $IMAGE_URI frontend-app
+          docker push $IMAGE_URI
+          echo "FRONTEND_IMAGE=$IMAGE_URI" >> $GITHUB_ENV
+
+      - name: Build and push iot-simulator
+        run: |
+          IMAGE_URI=${AWS_ACCOUNT_ID}.dkr.ecr.${AWS_REGION}.amazonaws.com/iot-simulator:${IMAGE_TAG}
+          docker build -t $IMAGE_URI iot-simulator
+          docker push $IMAGE_URI
+          echo "IOT_IMAGE=$IMAGE_URI" >> $GITHUB_ENV
+
+      - name: Update kubeconfig
+        run: |
+          aws eks update-kubeconfig \
+            --name $EKS_CLUSTER_NAME \
+            --region $AWS_REGION
+
+      - name: Deploy images to EKS
+        run: |
+          kubectl set image deployment/farm-data-service \
+            farm-data-service=$FARM_DATA_IMAGE \
+            -n farm-data
+
+          kubectl set image deployment/storage-service \
+            storage-service=$STORAGE_IMAGE \
+            -n storage
+
+          kubectl set image deployment/frontend \
+            frontend=$FRONTEND_IMAGE \
+            -n frontend
+
+          kubectl set image deployment/iot-simulator \
+            iot-simulator=$IOT_IMAGE \
+            -n farm-data
+
+      - name: Wait for rollout
+        run: |
+          kubectl rollout status deployment/farm-data-service -n farm-data --timeout=180s
+          kubectl rollout status deployment/storage-service -n storage --timeout=180s
+          kubectl rollout status deployment/frontend -n frontend --timeout=180s
+          kubectl rollout status deployment/iot-simulator -n farm-data --timeout=180s
+
+      - name: Show deployment status
+        run: |
+          kubectl get pods -A
+          kubectl get svc -A
