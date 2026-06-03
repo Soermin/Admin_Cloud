@@ -1,1 +1,9 @@
 smartfarming.zip
+
+# Local AWS CLI installer / temp files
+aws/
+awscliv2.zip
+
+# Backup/restore test files
+s3-backup-test.txt
+restored-s3-backup-test.txt
