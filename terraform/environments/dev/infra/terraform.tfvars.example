@@ -1,0 +1,37 @@
+aws_region  = "ap-southeast-1"
+project     = "smartfarming"
+environment = "dev"
+name_prefix = "smartfarming-tf-dev"
+owner       = "tuan-sormin"
+cost_center = "CC-AGRI-01"
+
+# Keep NAT enabled for private worker nodes. For lower cost, set:
+# enable_nat_gateway = false
+# node_subnet_type   = "public"
+enable_nat_gateway = true
+single_nat_gateway = true
+node_subnet_type   = "private"
+
+eks_cluster_version = "1.34"
+node_instance_types = ["t3.small"]
+node_desired_size   = 2
+node_min_size       = 1
+node_max_size       = 3
+
+rds_engine_version          = "16.4"
+rds_instance_class          = "db.t3.micro"
+rds_database_name           = "farming"
+rds_app_username            = "farm_app_user"
+rds_backup_retention_period = 7
+rds_skip_final_snapshot     = true
+
+github_repository       = "Soermin/Admin_Cloud"
+github_allowed_branches = ["main"]
+
+# If token.actions.githubusercontent.com already exists in this AWS account:
+# create_github_oidc_provider       = false
+# existing_github_oidc_provider_arn = "arn:aws:iam::<account-id>:oidc-provider/token.actions.githubusercontent.com"
+
+budget_enabled                    = true
+budget_limit_amount               = "10"
+budget_subscriber_email_addresses = []

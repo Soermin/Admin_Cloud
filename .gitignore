@@ -7,3 +7,20 @@ awscliv2.zip
 # Backup/restore test files
 s3-backup-test.txt
 restored-s3-backup-test.txt
+
+# Terraform local state, plans, and private variable files
+**/.terraform/
+*.tfstate
+*.tfstate.*
+*.tfvars
+*.tfvars.json
+*.tfplan
+crash.log
+crash.*.log
+override.tf
+override.tf.json
+*_override.tf
+*_override.tf.json
+
+# Keep example variable files versioned
+!*.tfvars.example

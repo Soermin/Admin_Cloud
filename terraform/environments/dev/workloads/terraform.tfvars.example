@@ -1,0 +1,28 @@
+aws_region = "ap-southeast-1"
+
+# Required when use_infra_remote_state = true.
+state_bucket    = "smartfarming-tf-state-<account-id>-<region>"
+infra_state_key = "smartfarming/dev/infra/terraform.tfstate"
+
+# Prefer commit SHA in CI/CD.
+image_tag = "latest"
+
+iot_interval_seconds = "60"
+
+# Set false only for advanced/manual testing where all values below are filled.
+use_infra_remote_state = true
+
+# Manual mode examples:
+# eks_cluster_name = "smartfarming-tf-dev"
+# image_repository_urls = {
+#   farm-data-service = "<account-id>.dkr.ecr.<region>.amazonaws.com/farm-data-service"
+#   storage-service   = "<account-id>.dkr.ecr.<region>.amazonaws.com/storage-service"
+#   frontend          = "<account-id>.dkr.ecr.<region>.amazonaws.com/frontend"
+#   iot-simulator     = "<account-id>.dkr.ecr.<region>.amazonaws.com/iot-simulator"
+# }
+# rds_host                = "smartfarming-tf-postgres-dev.xxxxxx.<region>.rds.amazonaws.com"
+# rds_database_name       = "farming"
+# rds_app_username        = "farm_app_user"
+# reports_bucket_name     = "smartfarming-tf-reports-<account-id>-<region>"
+# farm_data_irsa_role_arn = "arn:aws:iam::<account-id>:role/smartfarming-tf-dev-farm-data-irsa"
+# storage_irsa_role_arn   = "arn:aws:iam::<account-id>:role/smartfarming-tf-dev-storage-irsa"
